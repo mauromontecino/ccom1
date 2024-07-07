@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablas de Clientes</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Estilos personalizados para la tabla */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="text-center my-4">
+        <input type="text" id="alumnoFilter" placeholder="Nombre del Alumno" class="border p-2 rounded-md mx-2">
+        <button onclick="filtrarPorAlumno()" class="bg-blue-500 text-white px-4 py-2 rounded-md ml-2">Filtrar</button>
+    </div>
+    <div id="tables-container" class="container mx-auto"></div>
+
+    <script>
+        // Función para obtener la fecha actual en formato DD/MM/YYYY
+        function getCurrentDate() {
+            const now = new Date();
+            const day = now.getDate().toString().padStart(2, '0');
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const year = now.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        // Función para agregar días a una fecha en formato DD/MM/YYYY
+        function addDaysToDate(dateString, days) {
+            const parts = dateString.split('/');
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-based
+            const year = parseInt(parts[2], 10);
+            const newDate = new Date(year, month, day);
+            newDate.setDate(newDate.getDate() + days);
+            return `${newDate.getDate().toString().padStart(2, '0')}/${(newDate.getMonth() + 1).toString().padStart(2, '0')}/${newDate.getFullYear()}`;
+        }
+
+        // Función para calcular la diferencia en días entre dos fechas en formato DD/MM/YYYY
+        function differenceInDays(dateString1, dateString2) {
+            const date1 = new Date(dateString1.split('/').reverse().join('/'));
+            const date2 = new Date(dateString2.split('/').reverse().join('/'));
+            const diff = date1 - date2;
+            return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+
+        // Función para agrupar por cliente
+        function groupByCliente(data) {
+            const groupedData = {};
+
+            data.forEach(item => {
+                const clienteIndex = item.h5.findIndex(value => value === 'Cliente:');
+                if (clienteIndex !== -1 && clienteIndex + 1 < item.h5.length) {
+                    const clienteNombre = item.h5[clienteIndex + 1];
+                    if (!groupedData[clienteNombre]) {
+                        groupedData[clienteNombre] = [];
+                    }
+                    groupedData[clienteNombre].push(item);
+                } else {
+                    console.warn('No se encontró el nombre del cliente para:', item);
+                }
+            });
+
+            return groupedData;
+        }
+
+        // Función para crear las tablas HTML
+        function createTables(data, filterAlumno = '') {
+            const container = document.getElementById('tables-container');
+            container.innerHTML = ''; // Limpiar el contenido existente
+
+            // Crear una tabla por cliente
+            Object.entries(data).forEach(([cliente, cursos]) => {
+                const heading = document.createElement('h2');
+                heading.textContent = `Cliente: ${cliente}`;
+                heading.className = 'text-2xl font-bold my-4';
+                container.appendChild(heading);
+
+                let currentURL = null;
+                let table = null;
+                let tableContainsAlumno =
+                    false; // Variable para verificar si la tabla contiene al alumno filtrado
+
+                cursos.forEach(item => {
+                    if (item.URL !== currentURL) {
+                        // Crear una tabla nueva para cada cambio de URL
+                        if (table && tableContainsAlumno) {
+                            container.appendChild(table);
+                        }
+                        currentURL = item.URL;
+                        table = createNewTable(cliente, currentURL);
+                        tableContainsAlumno = false;
+                    }
+
+                    const itemContainsAlumno = addCursoToTable(table, item, filterAlumno);
+                    if (itemContainsAlumno) {
+                        tableContainsAlumno = true;
+                    }
+                });
+
+                // Añadir la última tabla creada si contiene al alumno filtrado
+                if (table && tableContainsAlumno) {
+                    container.appendChild(table);
+                }
+            });
+        }
+
+        // Función para crear una nueva tabla HTML
+        function createNewTable(cliente, url) {
+            const table = document.createElement('table');
+            table.className = 'table-auto w-full border-collapse border border-gray-300 my-4';
+
+            const headerRow = table.insertRow();
+            const headers = ['Curso', 'Fecha', 'Expira en (días)', 'Alumno'];
+
+            headers.forEach(headerText => {
+                const header = document.createElement('th');
+                header.textContent = headerText;
+                header.className = 'px-4 py-2 border border-gray-300 bg-gray-100';
+                headerRow.appendChild(header);
+            });
+
+            // Agregar fila de encabezado con la URL
+            const urlRow = table.insertRow();
+            urlRow.className = 'bg-gray-200';
+            const urlCell = urlRow.insertCell();
+            urlCell.colSpan = headers.length;
+            urlCell.textContent = url;
+            urlCell.className = 'px-4 py-2';
+
+            return table;
+        }
+
+        // Función para agregar un curso a la tabla HTML
+        function addCursoToTable(table, item, filterAlumno) {
+            const maxAlumnos = item.Alumnos.length;
+            const numRows = Math.max(maxAlumnos, 1); // Ensure at least 1 row
+
+            const currentDate = getCurrentDate();
+            let itemContainsAlumno = false;
+
+            for (let i = 0; i < numRows; i++) {
+                const alumno = i < maxAlumnos ? item.Alumnos[i].trim() : '';
+
+                // Si hay un filtro de alumno y no coincide, saltar esta iteración
+                if (filterAlumno && !alumno.toLowerCase().includes(filterAlumno.toLowerCase())) {
+                    continue;
+                }
+
+                const row = table.insertRow();
+
+                // Insertar celdas para curso y fecha
+                const cursoCell = row.insertCell();
+                cursoCell.textContent = item.h5[4]; // Curso
+                cursoCell.className = 'px-4 py-2 border border-gray-300';
+
+                const fechaCell = row.insertCell();
+                fechaCell.textContent = item.h5[6]; // Fecha
+                fechaCell.className = 'px-4 py-2 border border-gray-300';
+
+                // Calcular la fecha de vencimiento en días
+                const expiringDate = addDaysToDate(item.h5[6], 365); // 1 año = 365 días
+                const daysRemaining = differenceInDays(expiringDate, currentDate);
+                const expiringCell = row.insertCell();
+                expiringCell.textContent = daysRemaining;
+                expiringCell.className = 'px-4 py-2 border border-gray-300';
+
+                // Aplicar clase CSS "expired" si el curso está vencido
+                if (daysRemaining < 0) {
+                    expiringCell.classList.add('bg-red-500', 'text-white', 'font-bold');
+                    expiringCell.textContent = 'Vencido';
+                } else {
+                    expiringCell.textContent = `${expiringDate} (${daysRemaining} días)`;
+                }
+
+                // Insertar nombre del alumno en la columna "Alumno"
+                const alumnoCell = row.insertCell();
+                alumnoCell.textContent = alumno;
+                alumnoCell.className = 'px-4 py-2 border border-gray-300';
+                itemContainsAlumno = true;
+
+                // Agregar una fila vacía después de cada alumno
+                const emptyRow = table.insertRow();
+                emptyRow.className = 'empty-row';
+                for (let j = 0; j < 4; j++) {
+                    emptyRow.insertCell().textContent = '';
+                }
+            }
+
+            return itemContainsAlumno;
+        }
+
+        // Función para filtrar por nombre de alumno
+        function filtrarPorAlumno() {
+            const filterAlumno = document.getElementById('alumnoFilter').value;
+            const groupedData = groupByCliente(jsonData); // Usar los datos ya cargados
+            createTables(groupedData, filterAlumno);
+        }
+
+        let jsonData = [];
+
+        // URL del archivo JSON
+        const jsonFileUrl = 'datos.json'; // Reemplaza con la ruta correcta
+
+        // Cargar y procesar el JSON
+        fetch(jsonFileUrl)
+            .then(response => response.json())
+            .then(data => {
+                jsonData = data; // Guardar los datos en la variable global
+                const groupedData = groupByCliente(data);
+                createTables(groupedData);
+            })
+            .catch(error => {
+                console.error('Error al cargar el archivo JSON:', error);
+            });
+    </script>
+</body>
+
+</html>
