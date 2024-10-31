@@ -16719,22 +16719,6 @@
     ],
     "Alumnos": ["HUGO, DONOSO", "ORLANDO, ERAZO"]
   },
-
-  {
-    "URL": "https://eximosoft.com.ar/ComercialArgentina/solicitudes/frmSolicitudAlumnos.aspx?ID=1000",
-    "h5": [
-      "Solicitud Alumnos",
-      "Cliente:",
-      "HYTECH ING S.A.",
-      "Curso:",
-      "Trabajo seguro en espacio confinado",
-      "Fecha:",
-      "04/07/2024",
-      "Instructor:",
-      "Montecino Mauro"
-    ],
-    "Alumnos": ["HUGO, DONOSO", "ORLANDO, ERAZO"]
-  },
   {
     "URL": "https://eximosoft.com.ar/ComercialArgentina/solicitudes/frmSolicitudAlumnos.aspx?ID=1001",
     "h5": [
